@@ -1,0 +1,40 @@
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Deduplication Tool</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Deduplication Tool</div>
+
+
+<div id="doc3">
+This wil eventually be your results fo the merge dude
+<form "merge_results">
+<table>
+<tr>
+<th>Merge</th>
+<th colspan="100">Results!</th>
+</tr>
+    [% FOREACH key IN matches.keys %]
+        <tr>
+        <td><input type="checkbox" name='merge'></td>
+        [% FOREACH match IN matches.$key %]
+        <td>
+            <p><input type="radio" name='source' value="[% $key %]"></p>
+            [% FOREACH field IN match %]
+        <input type='hidden' value="[% field(0) %]">
+            <p>[% field %]</p>
+            [% END %]
+        </td>
+        [% END %]
+        </tr>
+    [% END %]
+</table>
+<input type='submit' value='DooEtt!' />
+</form>
+</div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]
