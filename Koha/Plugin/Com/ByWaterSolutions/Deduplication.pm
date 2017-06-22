@@ -16,6 +16,10 @@ use Koha::Libraries;
 use Koha::Patron::Categories;
 use MARC::Record;
 use Koha::Items;
+use C4::Items;
+use C4::Serials;
+use C4::Reserves qw/MergeHolds/;
+use C4::Acquisition;
 
 ## Here we set our plugin version
 our $VERSION = 0.0;
@@ -150,6 +154,8 @@ sub tool_step2 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
+    my $display_fields =  _get_display_fields();
+
     my $template = $self->get_template({ file => 'tool-step2.tt' });
 
     my $filter = {};
@@ -188,7 +194,6 @@ sub tool_step2 {
         }
     }
     my $matched_items = Koha::Items->search($filter, { "group_by" => ["biblionumber"] });
-    warn $matched_items->count;
     my %seen;
     my $stored = {};
     while ( my $cur_item = $matched_items->next ){
@@ -197,18 +202,36 @@ sub tool_step2 {
             my $matcher = C4::Matcher->fetch(1);
             my @matches = $matcher->get_matches( $record, 100 );
             if ( scalar @matches > 1 ) {
-            foreach my $match ( @matches ) {
-                if ( 1 || !$seen{$match->{record_id}}++ ){
-                    my @display_record = _prep_record({biblionumber=>$match->{record_id}});
-                    push ( @{$stored->{ $cur_item->biblionumber }}, \@display_record );
+                my $pre_by_value;
+                my $pre_by_length;
+                my $longest;
+                foreach my $match ( @matches ) {
+                    my $display_record = _prep_record({
+                            biblionumber   => $match->{record_id},
+                            display_fields => $display_fields
+                        });
+                    if ( !$pre_by_value && $display_record->{pre} ) {
+                        $pre_by_value = $display_record->{biblionumber};
+                        $pre_by_length = $pre_by_value;
+                        $longest = $display_record->{length};
+                    } elsif ( !$pre_by_length ) {
+                        $pre_by_length = $display_record->{biblionumber};
+                        $longest = $display_record->{length};
+                    } elsif ( $pre_by_value && $display_record->{pre} && $display_record->{length} > $longest ) {
+                        $pre_by_value = $display_record->{biblionumber};
+                        $pre_by_length = $display_record->{biblionumber};
+                        $longest = $display_record->{length};
+                    } elsif ( !$pre_by_value && $display_record->{length} > $longest ) {
+                        $pre_by_length = $pre_by_value;
+                        $longest = $display_record->{length};
+                    }
+                        push ( @{$stored->{ $cur_item->biblionumber }->{records}}, $display_record );
                 }
-            }
+                $stored->{ $cur_item->biblionumber }->{preselected} = $pre_by_value || $pre_by_length;
             }
         }
     }
 
-
-warn Data::Dumper::Dumper( $stored );
     $template->param( matches => $stored );
 
     print $cgi->header();
@@ -219,32 +242,184 @@ warn Data::Dumper::Dumper( $stored );
 sub tool_step3 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
+    my @biblionumbers;
+    my $ref_biblionumber;
+    my @report;
+    my $display_fields =  _get_display_fields();
 
-    warn Data::Dumper::Dumper( $cgi->multi_param('merge') );
-    foreach my $merger ( $cgi->multi_param('merge') ){
-        warn "source:".$cgi->multi_param('source'.$merger);
-        warn Data::Dumper::Dumper( $cgi->multi_param('record'.$merger) );
+    foreach my $merger ( $cgi->multi_param( 'merge' ) ){
+        $ref_biblionumber = $cgi->param( 'source'.$merger );
+        foreach my $target ( $cgi->multi_param( 'record'.$merger ) ){
+            push (@biblionumbers, $target) if $target ne $ref_biblionumber;
+        }
+        push @report , _merge_biblios({
+                ref_biblionumber => $ref_biblionumber,
+                biblionumbers    => \@biblionumbers,
+                report_fields    => $display_fields
+            });
     }
 
     my $template = $self->get_template({ file => 'tool-step3.tt' });
+    $template->param( report => \@report );
 
     print $cgi->header();
     print $template->output();
 }
 
+sub _get_display_fields {
+#    my $display_fields_str =  '245a,020,100a,300,650a,942';
+    my $display_fields_str ||= C4::Context->preference('MergeReportFields');
+    my @display_fields;
+    foreach my $field_str (split /,/, $display_fields_str) {
+        if ($field_str =~ /(\d{3})([0-9a-z]*)/) {
+            my ($field, $subfields) = ($1, $2);
+            push @display_fields, {
+                tag => $field,
+                subfields => [ split //, $subfields ]
+            }
+        }
+    }
+    return \@display_fields;
+}
+
+
 sub _prep_record {
     my $params = shift;
-    my $record = GetMarcBiblio($params->{biblionumber});
-    my @display_record = ($params->{biblionumber});
+    my $display_fields = $params->{display_fields};
+    my $biblionumber = $params->{biblionumber};
+    my $record = GetMarcBiblio($biblionumber);
+    my $length = length( $record->as_formatted() );
+    my $check_field = '942';
+    my @check_subfields = ('a');
+    my $check_value = 'BK';
+    my $checker = _get_sub_or_fields({
+            record    =>$record,
+            tag       =>$check_field,
+            subfields =>\@check_subfields});
+    my $pre_select = ${$checker}[0] eq $check_value;
+    my @display_record;
 
-    my @display_fields = ('245$a','020','100$a','300','942');
-    for my $field ( @display_fields ) {
-        my ( $f, $sf ) = split /\$/, $field;
-        if ( $f && $sf ) { push ( @display_record, $record->subfield($f,$sf) ); }
-        elsif ( $f && !$sf && $record->field($f) ) { push ( @display_record, $record->field($f)->as_formatted() ); }
-        else { next; }
+    foreach my $field (@$display_fields) {
+        my $line = _get_sub_or_fields({
+                record    => $record,
+                tag       => $field->{tag},
+                subfields => $field->{subfields}
+            });
+        push @display_record, @$line
     }
-    return @display_record;
+
+    return {biblionumber=>$biblionumber,pre=>$pre_select,length=>$length,display=>\@display_record};
+}
+
+sub _get_sub_or_fields {
+    my $params   = shift;
+    my $field     = $params->{field};
+    my $tag       = $params->{tag};
+    my $subfields = $params->{subfields};
+    my $record    = $params->{record};
+    my @display_fields;
+
+    my @marcfields = $record->field($tag);
+    foreach my $marcfield (@marcfields) {
+        if (scalar @{$subfields}) {
+            my $subs = join("", @{$subfields} );
+            $subs = $marcfield->as_string($subs);
+            push @display_fields, $subs;
+        } elsif ($tag gt '009') {
+                my $value = $marcfield->as_string();
+                push @display_fields , $value;
+        } else {
+             push @display_fields, $marcfield->as_string();
+        }
+    }
+    return \@display_fields
+}
+
+sub _move_items_and_extras {
+    my $params = shift;
+    my $biblionumber = $params->{biblionumber};
+    my $ref_biblionumber = $params->{ref_biblionumber};
+    my @errors;
+    my $dbh = C4::Context->dbh;
+
+    my @notmoveditems;
+    # Moving items from the other record to the reference record
+    my $items = Koha::Items->search({ biblionumber => $biblionumber });
+        while ( my $item = $items->next) {
+            my $res = MoveItemFromBiblio( $item->itemnumber, $biblionumber, $ref_biblionumber );
+            #This function takes care of these tables: reserves hold_fill_targets tmp_holdsqueue linktracker
+            if ( not defined $res ) {
+                push @notmoveditems, $item->itemnumber;
+            }
+        }
+    # If some items could not be moved :
+    if (scalar(@notmoveditems) > 0) {
+        my $itemlist = join(' ',@notmoveditems);
+        push @errors, { code => "CANNOT_MOVE", value => $itemlist };
+    }
+
+    my $sth_subscription = $dbh->prepare("UPDATE subscription SET biblionumber = ? WHERE biblionumber = ?");
+    my $sth_subscriptionhistory = $dbh->prepare("UPDATE subscriptionhistory SET biblionumber = ? WHERE biblionumber = ?");
+    my $sth_serial = $dbh->prepare("UPDATE serial SET biblionumber = ? WHERE biblionumber = ?");
+    # Moving subscriptions from the other record to the reference record
+    my $subcount = CountSubscriptionFromBiblionumber($biblionumber);
+    if ($subcount > 0) {
+        $sth_subscription->execute($ref_biblionumber, $biblionumber);
+        $sth_subscriptionhistory->execute($ref_biblionumber, $biblionumber);
+    }
+    # Moving serials
+    $sth_serial->execute($ref_biblionumber, $biblionumber);
+    # Moving orders (orders linked to items of frombiblio have already been moved by MoveItemFromBiblio)
+    my @allorders = GetOrdersByBiblionumber($biblionumber);
+    my @tobiblioitem = GetBiblioItemByBiblioNumber ($ref_biblionumber);
+    my $tobiblioitem_biblioitemnumber = $tobiblioitem [0]-> {biblioitemnumber };
+    foreach my $myorder (@allorders) {
+        $myorder->{'biblionumber'} = $ref_biblionumber;
+        ModOrder ($myorder);
+    # TODO : add error control (in ModOrder?)
+    }
+
+    # Deleting the other records
+    if (scalar(@errors) == 0) {
+        # Move holds
+        MergeHolds($dbh, $ref_biblionumber, $biblionumber);
+        my $error = DelBiblio($biblionumber);
+        push @errors, $error if ($error);
+    }
+
+    return @errors;
+
+}
+
+sub _merge_biblios {
+    my $params = shift;
+    my $biblionumbers = $params->{biblionumbers};
+    my $ref_biblionumber = $params->{ref_biblionumber};
+    my $report_fields = $params->{report_fields};
+
+    my @report_records;
+
+    my @errors;
+
+    foreach my $biblionumber (@$biblionumbers) {
+
+         my $report = _prep_record({biblionumber=>$biblionumber,display_fields=>$report_fields});
+
+         push ( @errors, _move_items_and_extras({biblionumber=>$biblionumber,ref_biblionumber=>$ref_biblionumber}) );
+         my $success = (scalar @errors) ? undef : 1;
+         my %report_record = (
+            biblionumber => $biblionumber,
+            ref_biblionumber => $ref_biblionumber,
+            fields => $report,
+            errors => \@errors,
+            success => $success,
+        );
+
+        push @report_records, \%report_record;
+
+    }
+
+    return \@report_records;
 }
 
 

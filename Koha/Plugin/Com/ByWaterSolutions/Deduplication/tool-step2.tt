@@ -1,3 +1,4 @@
+[% USE Dumper %]
 [% INCLUDE 'doc-head-open.inc' %]
  <title>Koha: Deduplication Tool</title>
 [% INCLUDE 'doc-head-close.inc' %]
@@ -18,16 +19,24 @@
 <table>
 <tr>
 <th>Merge</th>
-<th colspan="100">Results!</th>
+<th colspan="100">Matches</th>
 </tr>
     [% FOREACH key IN matches.keys %]
         <tr>
         <td><input type="checkbox" name='merge' value="[% key %]"></td>
-        [% FOREACH match IN matches.$key %]
+        [% FOREACH match IN matches.$key.records %]
         <td>
-            <p><input type="radio" name='source[% key %]' value="[% match.0 %]" /></p>
-            <input type='hidden' value="[% match.0 %]" name="record[% key %]">
-            [% FOREACH field IN match %]
+            <p>
+            [% IF matches.$key.preselected ==  match.biblionumber %]
+            <input type="radio" name='source[% key %]' value="[% match.biblionumber %]" checked="checked" />
+            [% ELSE %]
+            <input type="radio" name='source[% key %]' value="[% match.biblionumber %]" />
+            [% END %]
+            </p>
+            <input type='hidden' value="[% match.biblionumber %]" name="record[% key %]">
+            <input type='hidden' value="[% match.pre %]" name="pre[% key %]">
+            <input type='hidden' value="[% match.length %]" name="length[% key %]">
+            [% FOREACH field IN match.display %]
             <p>[% field %]</p>
             [% END %]
         </td>
