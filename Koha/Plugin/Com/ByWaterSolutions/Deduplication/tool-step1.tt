@@ -281,7 +281,7 @@
           </fieldset>
 
 
-        <input name="submitted" type="submit" value="Click me" />
+        <input name="submitted" type="submit" value="Search for duplicates" />
     </form>
 
 [% INCLUDE 'intranet-bottom.inc' %]

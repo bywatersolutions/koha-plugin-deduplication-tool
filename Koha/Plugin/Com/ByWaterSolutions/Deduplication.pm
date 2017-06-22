@@ -58,6 +58,7 @@ sub new {
 ## of running a tool. The difference between a tool and a report is
 ## primarily semantic, but in general any plugin that modifies the
 ## Koha database should be considered a tool
+
 sub tool {
     my ( $self, $args ) = @_;
 
@@ -71,46 +72,6 @@ sub tool {
     }
     else { $self->tool_step1(); }
 
-}
-
-## The existiance of a 'to_marc' subroutine means the plugin is capable
-## of converting some type of file to MARC for use from the stage records
-## for import tool
-##
-## This example takes a text file of the arbtrary format:
-## First name:Middle initial:Last name:Year of birth:Title
-## and converts each line to a very very basic MARC record
-sub to_marc {
-    my ( $self, $args ) = @_;
-
-    my $data = $args->{data};
-
-    my $batch = q{};
-
-    foreach my $line ( split( /\n/, $data ) ) {
-        my $record = MARC::Record->new();
-        my ( $firstname, $initial, $lastname, $year, $title ) = split(/:/, $line );
-
-        ## create an author field.
-        my $author_field = MARC::Field->new(
-            '100', 1, '',
-            a => "$lastname, $firstname $initial.",
-            d => "$year-"
-        );
-
-        ## create a title field.
-        my $title_field = MARC::Field->new(
-            '245', '1', '4',
-            a => "$title",
-            c => "$firstname $initial. $lastname",
-        );
-
-        $record->append_fields( $author_field, $title_field );
-
-        $batch .= $record->as_usmarc() . "\x1D";
-    }
-
-    return $batch;
 }
 
 ## This is the 'install' method. Any database tables or other setup that should
@@ -193,7 +154,11 @@ sub tool_step2 {
                 $filter->{$field} = { $op => $q };
         }
     }
-    my $matched_items = Koha::Items->search($filter, { "group_by" => ["biblionumber"] });
+    my $matched_items = Koha::Biblios->search($filter, { 
+            join       =>, 'items',
+            "group_by" => ["biblionumber"],
+            order_by   => 'title'
+        });
     my %seen;
     my $stored = {};
     while ( my $cur_item = $matched_items->next ){
@@ -206,6 +171,7 @@ sub tool_step2 {
                 my $pre_by_length;
                 my $longest;
                 foreach my $match ( @matches ) {
+                    $seen{$match->{record_id}}++;
                     my $display_record = _prep_record({
                             biblionumber   => $match->{record_id},
                             display_fields => $display_fields
@@ -222,7 +188,7 @@ sub tool_step2 {
                         $pre_by_length = $display_record->{biblionumber};
                         $longest = $display_record->{length};
                     } elsif ( !$pre_by_value && $display_record->{length} > $longest ) {
-                        $pre_by_length = $pre_by_value;
+                        $pre_by_length = $display_record->{biblionumber};
                         $longest = $display_record->{length};
                     }
                         push ( @{$stored->{ $cur_item->biblionumber }->{records}}, $display_record );

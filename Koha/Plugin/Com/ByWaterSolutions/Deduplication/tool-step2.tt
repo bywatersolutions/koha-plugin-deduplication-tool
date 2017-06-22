@@ -44,7 +44,7 @@
         </tr>
     [% END %]
 </table>
-<input type='submit' value='DooEtt!' />
+<input type='submit' value='Merge Selected Records' />
 </form>
 </div>
 
