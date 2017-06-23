@@ -106,6 +106,8 @@ sub tool_step1 {
     my $cgi = $self->{'cgi'};
 
     my $template = $self->get_template({ file => 'tool-step1.tt' });
+    my @matchers = C4::Matcher->GetMatcherList();
+    $template->param('matchers'=>\@matchers);
 
     print $cgi->header();
     print $template->output();
@@ -141,8 +143,9 @@ sub tool_step2 {
     my @fields = $cgi->multi_param('f');
     my @q = $cgi->multi_param('q');
     my @op = $cgi->multi_param('op');
+    my $matcher = $cgi->param('matcher');
 
-    my $f; 
+    my $f;
     for (my $i = 0; $i < @fields; $i++) {
         my $field = $fields[$i];
         my $q = shift @q;
@@ -164,7 +167,7 @@ sub tool_step2 {
     while ( my $cur_item = $matched_items->next ){
         if ( !$seen{$cur_item->biblionumber}++ ) {
             my $record = GetMarcBiblio( $cur_item->biblionumber );
-            my $matcher = C4::Matcher->fetch(1);
+            my $matcher = C4::Matcher->fetch($matcher);
             my @matches = $matcher->get_matches( $record, 100 );
             if ( scalar @matches > 1 ) {
                 my $pre_by_value;

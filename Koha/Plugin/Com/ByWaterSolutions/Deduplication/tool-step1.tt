@@ -280,6 +280,14 @@
             <p class="hint">_ matches only a single character</p>
           </fieldset>
 
+          <fieldset>
+             <select id="matchers" name="matcher">
+             [% FOREACH matcher IN matchers %]
+                 <option value="[% matcher.matcher_id %]">[% matcher.code %] - [% matcher.description %]</option>
+             [% END %]
+            </select>
+          </fieldset>
+
 
         <input name="submitted" type="submit" value="Search for duplicates" />
     </form>
