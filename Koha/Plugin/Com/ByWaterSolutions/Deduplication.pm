@@ -236,8 +236,7 @@ sub tool_step3 {
 }
 
 sub _get_display_fields {
-#    my $display_fields_str =  '245a,020,100a,300,650a,942';
-    my $display_fields_str ||= C4::Context->preference('MergeReportFields');
+    my $display_fields_str = C4::Context->preference('MergeReportFields') || '245a,020,100a,300,650a,942';
     my @display_fields;
     foreach my $field_str (split /,/, $display_fields_str) {
         if ($field_str =~ /(\d{3})([0-9a-z]*)/) {
@@ -257,6 +256,7 @@ sub _prep_record {
     my $display_fields = $params->{display_fields};
     my $biblionumber = $params->{biblionumber};
     my $record = GetMarcBiblio($biblionumber);
+    return {biblionumber=>$biblionumber,pre=>undef,length=>0,display=>["Record not found, indexes may need rebuilding"]} if !$record;
     my $length = length( $record->as_formatted() );
     my $check_field = '942';
     my @check_subfields = ('a');
