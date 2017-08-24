@@ -1,0 +1,29 @@
+{
+  "name": "koha-plugin-deduplication-tool",
+  "version": "0.0.1",
+  "previous_version": "0.0.1",
+  "description": "Koha Record Deduplication Plugin",
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-cli": "^1.2.2",
+    "gulp-github-release": "^1.1.5",
+    "gulp-run": "^1.7.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bywatersolutions/koha-plugin-deduplication-tool.git"
+  },
+  "author": "Kyle M Hall <kyle@bywatersolutions.com>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/bywatersolutions/koha-plugin-deduplication-tool/issues"
+  },
+  "homepage": "https://github.com/bywatersolutions/koha-plugin-deduplication-tool#readme",
+  "dependencies": {
+    "datetime": "0.0.3",
+    "node-datetime": "^2.0.0"
+  }
+}
