@@ -22,7 +22,7 @@ use C4::Reserves qw/MergeHolds/;
 use C4::Acquisition;
 
 ## Here we set our plugin version
-our $VERSION = 0.0;
+our $VERSION = "{VERSION}";
 
 ## Here is our metadata, some keys are required, some are optional
 our $metadata = {

@@ -24,6 +24,8 @@
   "homepage": "https://github.com/bywatersolutions/koha-plugin-deduplication-tool#readme",
   "dependencies": {
     "datetime": "0.0.3",
+    "gulp-replace": "^0.6.1",
+    "jsonfile": "^4.0.0",
     "node-datetime": "^2.0.0"
   }
 }
