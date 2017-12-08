@@ -2,6 +2,19 @@
 [% INCLUDE 'doc-head-open.inc' %]
  <title>Koha: Deduplication Tool</title>
 [% INCLUDE 'doc-head-close.inc' %]
+<script type="text/javascript">
+$(document).ready(function(){
+    $("body").on("click",".previewMARC", function(e){
+        e.preventDefault();
+        var page = $(this).attr("href");
+        $("#marcPreview .modal-body").load(page + " table");
+        $('#marcPreview').modal({show:true});
+    });
+    $("#marcPreview").on("hidden", function(){
+        $("#marcPreview .modal-body").html("<div id=\"loading\"><img src=\"/intranet-tmpl/prog/img/spinner-small.gif\" alt=\"\" /> "+_("Loading")+"</div>");
+    });
+});
+</script>
 </head>
 <body>
 [% INCLUDE 'header.inc' %]
@@ -32,6 +45,8 @@
             [% ELSE %]
             <input type="radio" name='source[% key %]' value="[% match.biblionumber %]" />
             [% END %]
+            <a class="previewMARC" href="/cgi-bin/koha/catalogue/showmarc.pl?id=[% match.biblionumber %]&viewas=html" title="MARC">Preview</a> /
+            <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% match.biblionumber %]" target="_blank" title="MARC"> View</a>
             </p>
             <input type='hidden' value="[% match.biblionumber %]" name="record[% key %]">
             <input type='hidden' value="[% match.pre %]" name="pre[% key %]">
@@ -48,5 +63,22 @@
 </form>
 </div>
 
+
+<div id="marcPreview" class="modal" tabindex="-1" role="dialog" aria-labelledby="marcPreviewLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+    <div class="modal-header">
+        <button type="button" class="closebtn" data-dismiss="modal" aria-hidden="true">×</button>
+        <h3 id="marcPreviewLabel">MARC preview</h3>
+    </div>
+    <div class="modal-body">
+        <div id="loading"> <img src="/intranet-tmpl/prog/img/spinner-small.gif" alt="" /> Loading </div>
+    </div>
+    <div class="modal-footer">
+        <button class="btn btn-default" data-dismiss="modal" aria-hidden="true">Close</button>
+    </div>
+    </div>
+    </div>
+</div>
 
 [% INCLUDE 'intranet-bottom.inc' %]
