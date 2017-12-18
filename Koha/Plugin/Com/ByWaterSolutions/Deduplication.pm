@@ -373,6 +373,7 @@ sub _merge_biblios {
     foreach my $biblionumber (@$biblionumbers) {
 
          my $report = _prep_record({biblionumber=>$biblionumber,display_fields=>$report_fields});
+         next if ( $report->{length} == 0 );
 
          push ( @errors, _move_items_and_extras({biblionumber=>$biblionumber,ref_biblionumber=>$ref_biblionumber}) );
          my $success = (scalar @errors) ? undef : 1;
