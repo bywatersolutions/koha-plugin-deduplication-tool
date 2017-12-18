@@ -222,7 +222,7 @@
 <div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; Deduplication Tool</div>
 
 <div id="doc3">
-    <p>This tool assists in the identification of duplicat records and allow for merging a batch at once, this tool allows only selection of a 'source' record to merge others into and does not allow for granular combination of fields form recordst to be merged. Select from the options below to identify a set to inspect for duplicates.
+    <p>This tool assists in the identification of duplicate records and allows for merging a batch at once. This tool allows only selection of a 'source' record to merge others into and does not allow for granular combination of fields from records to be merged. Select from the options below to identify a set to inspect for duplicates.
 
     <!-- Notice our form here has no 'action', this is good, it means that our forms will always get passed back to 'plugins/run.pl'. You could hard code it instead if you prefer -->
     <form method="post">
