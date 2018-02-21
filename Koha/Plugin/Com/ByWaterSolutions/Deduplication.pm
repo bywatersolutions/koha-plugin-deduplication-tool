@@ -144,6 +144,9 @@ sub tool_step2 {
     my @q = $cgi->multi_param('q');
     my @op = $cgi->multi_param('op');
     my $matcher = $cgi->param('matcher');
+    my $check_field = $cgi->param('check_field');
+    my $check_subfield = $cgi->param('check_subfield');
+    my $check_value = $cgi->param('check_value');
 
     my $f;
     for (my $i = 0; $i < @fields; $i++) {
@@ -166,7 +169,12 @@ sub tool_step2 {
     my $stored = {};
     while ( my $cur_item = $matched_items->next ){
         if ( !$seen{$cur_item->biblionumber}++ ) {
-            my $record = GetMarcBiblio( $cur_item->biblionumber );
+            my $record;
+            if ( C4::Context->preference('Version') gt '17.060000' ) {
+                $record = GetMarcBiblio({ biblionumber => $cur_item->biblionumber });
+            } else {
+                $record = GetMarcBiblio( $cur_item->biblionumber );
+            }
             my $matcher = C4::Matcher->fetch($matcher);
             my @matches = $matcher->get_matches( $record, 100 );
             if ( scalar @matches > 1 ) {
@@ -177,7 +185,10 @@ sub tool_step2 {
                     $seen{$match->{record_id}}++;
                     my $display_record = _prep_record({
                             biblionumber   => $match->{record_id},
-                            display_fields => $display_fields
+                            display_fields => $display_fields,
+                            check_field    => $check_field,
+                            check_subfield => $check_subfield,
+                            check_value    => $check_value,
                         });
                     if ( !$pre_by_value && $display_record->{pre} ) {
                         $pre_by_value = $display_record->{biblionumber};
@@ -255,17 +266,31 @@ sub _prep_record {
     my $params = shift;
     my $display_fields = $params->{display_fields};
     my $biblionumber = $params->{biblionumber};
-    my $record = GetMarcBiblio($biblionumber);
+    my $record;
+    if ( C4::Context->preference('Version') gt '17.060000' ) {
+       $record = GetMarcBiblio({ biblionumber => $biblionumber });
+    } else {
+       $record = GetMarcBiblio( $biblionumber );
+    }
     return {biblionumber=>$biblionumber,pre=>undef,length=>0,display=>["Record not found, indexes may need rebuilding"]} if !$record;
     my $length = length( $record->as_formatted() );
-    my $check_field = '942';
-    my @check_subfields = ('a');
-    my $check_value = 'BK';
+    my $check_field = $params->{check_field};
+    my $check_subfield = $params->{check_subfield};
+    my $check_value = $params->{check_value};
+    my $check_sf = $check_subfield ? [ $check_subfield ] : undef;
     my $checker = _get_sub_or_fields({
             record    =>$record,
             tag       =>$check_field,
-            subfields =>\@check_subfields});
-    my $pre_select = ${$checker}[0] eq $check_value;
+            subfields =>$check_sf,
+            });
+    my $pre_select = 0;
+    if ( $check_value ) {
+        $pre_select = ${$checker}[0] eq $check_value if $checker && ${$checker}[0];
+        #if we are checking against a value make sure we match
+    } else {
+        $pre_select = 1 if $checker && ${$checker}[0];
+        #if no value we are checking for existence of field
+    }
     my @display_record;
 
     foreach my $field (@$display_fields) {
@@ -282,15 +307,15 @@ sub _prep_record {
 
 sub _get_sub_or_fields {
     my $params   = shift;
-    my $field     = $params->{field};
     my $tag       = $params->{tag};
     my $subfields = $params->{subfields};
     my $record    = $params->{record};
     my @display_fields;
+    return unless $record && $tag;
 
     my @marcfields = $record->field($tag);
     foreach my $marcfield (@marcfields) {
-        if (scalar @{$subfields}) {
+        if ($subfields && scalar @{$subfields}) {
             my $subs = join("", @{$subfields} );
             $subs = $marcfield->as_string($subs);
             push @display_fields, $subs;
@@ -304,7 +329,7 @@ sub _get_sub_or_fields {
     return \@display_fields
 }
 
-sub _move_items_and_extras {
+sub _move_items_and_extras { #this is just lifted from Koha
     my $params = shift;
     my $biblionumber = $params->{biblionumber};
     my $ref_biblionumber = $params->{ref_biblionumber};
@@ -367,7 +392,6 @@ sub _merge_biblios {
     my $report_fields = $params->{report_fields};
 
     my @report_records;
-
     my @errors;
 
     foreach my $biblionumber (@$biblionumbers) {

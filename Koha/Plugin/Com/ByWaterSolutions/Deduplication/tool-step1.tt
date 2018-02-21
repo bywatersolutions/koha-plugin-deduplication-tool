@@ -281,11 +281,23 @@
           </fieldset>
 
           <fieldset>
+             <label for="matchers">Select a matching rule to identify duplicates</label>
              <select id="matchers" name="matcher">
              [% FOREACH matcher IN matchers %]
                  <option value="[% matcher.matcher_id %]">[% matcher.code %] - [% matcher.description %]</option>
              [% END %]
             </select>
+          </fieldset>
+
+          <fieldset>
+             <p>Select field/value for pre-selecting record to be used as merge base. Suppliying a field/subfield with no value will check for non-empty existence of that field</p>
+             <label for="check_fieldi">Field:</label>
+             <input name="check_field" type="text" length="3" />
+             <label for="check_subfield">Subfield:</label>
+             <input name="check_subfield" type="text" length="3" />
+             <label for="check_value">Value:</label>
+             <input name="check_value" type="text" length="3" />
+
           </fieldset>
 
 
