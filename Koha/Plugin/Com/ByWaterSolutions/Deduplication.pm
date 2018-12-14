@@ -365,8 +365,6 @@ sub _move_items_and_extras { #this is just lifted from Koha
     $sth_serial->execute($ref_biblionumber, $biblionumber);
     # Moving orders (orders linked to items of frombiblio have already been moved by MoveItemFromBiblio)
     my @allorders = GetOrdersByBiblionumber($biblionumber);
-    my @tobiblioitem = GetBiblioItemByBiblioNumber ($ref_biblionumber);
-    my $tobiblioitem_biblioitemnumber = $tobiblioitem [0]-> {biblioitemnumber };
     foreach my $myorder (@allorders) {
         $myorder->{'biblionumber'} = $ref_biblionumber;
         ModOrder ($myorder);
