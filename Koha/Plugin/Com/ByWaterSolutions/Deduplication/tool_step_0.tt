@@ -1,0 +1,54 @@
+[% USE ItemTypes %]
+[% USE Branches %]
+[% USE AuthorisedValues %]
+
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Deduplication Tool</title>
+[% INCLUDE 'doc-head-close.inc' %]
+  <script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.dataTables.columnFilter.js"></script>
+  <script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.fixFloat.js"></script>
+  <link rel="stylesheet" type="text/css" href="[% interface %]/[% theme %]/css/itemsearchform.css" />
+
+  <script type="text/javascript">
+    //<![CDATA[
+
+    $(document).ready(function () {
+     // $('#toolbar').fixFloat();
+
+      // Prevent user to select the 'All ...' option with other options.
+      $('div.form-field-select').each(function() {
+        $(this).find('select').filter(':last').change(function() {
+          values = $(this).val();
+          if (values.length > 1) {
+            var idx = $.inArray('', values);
+            if (idx != -1) {
+              values.splice(idx, 1);
+              $(this).val(values);
+            }
+          }
+        });
+      });
+
+    });
+    //]]>
+  </script>
+
+
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+
+<div id="breadcrumbs"><a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=tool">Deduplication Tool</a></div>
+
+<div id="doc3">
+    <p>This tool provides two methods for deduplicating your catalog</p>
+    <ul>
+      <li><a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=move_step_1">Move items</a> - Upload a list of itemnumbers and target biblionumbers</li>
+      <li><a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=search_step_1">Search items</a> - Provides a form similar to the item search which searches areas of the collection and uses the record mathing rules to locate duplicates</li>
+    </ul>
+    </div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]

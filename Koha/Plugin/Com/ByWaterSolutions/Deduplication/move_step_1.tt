@@ -1,0 +1,73 @@
+[% USE ItemTypes %]
+[% USE Branches %]
+[% USE AuthorisedValues %]
+
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Deduplication Tool</title>
+[% INCLUDE 'doc-head-close.inc' %]
+  <script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.dataTables.columnFilter.js"></script>
+  <script type="text/javascript" src="[% interface %]/lib/jquery/plugins/jquery.fixFloat.js"></script>
+  <link rel="stylesheet" type="text/css" href="[% interface %]/[% theme %]/css/itemsearchform.css" />
+
+  <script type="text/javascript">
+    //<![CDATA[
+
+    $(document).ready(function () {
+     // $('#toolbar').fixFloat();
+
+      // Prevent user to select the 'All ...' option with other options.
+      $('div.form-field-select').each(function() {
+        $(this).find('select').filter(':last').change(function() {
+          values = $(this).val();
+          if (values.length > 1) {
+            var idx = $.inArray('', values);
+            if (idx != -1) {
+              values.splice(idx, 1);
+              $(this).val(values);
+            }
+          }
+        });
+      });
+
+    });
+    //]]>
+  </script>
+
+
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+
+<div id="breadcrumbs">
+    <a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=tool">Deduplication Tool</a> &rsaquo;
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=move_step_1">Move items</a>
+</div>
+
+<div id="doc3">
+    [% IF missing_required_columns %]
+        <div class='alert'>Your file is missing a required column</div>
+    [% END %]
+    <p>Upload a file containing three columns named as:</p>
+    <ul>
+      <li>itemnumber</li>
+      <li>biblionumber</li>
+      <li>target</li>
+    <ul>
+    <p>The first is the itemnumber to move, the second is the current biblionumber (which is needed for reindexing the biblio and saving a db lookup), and the third is the target biblionumber</p>
+
+    <form action="/cgi-bin/koha/plugins/run.pl?[% CLASS | uri %]&method=move_step_2"  enctype="multipart/form-data" method="post">
+    <fieldset id="data">
+      <legend>Items to move</legend>
+      <p><label for="items">Upload a file:</label>
+      <input type="file" name="items" /></p>
+      <input type="submit" value="Submit" />
+      <input type="hidden" name="method" value="move_step_2" />
+      <input type="hidden" name="class" value="[% CLASS %]" />
+    </fieldset>
+    </form>
+
+[% INCLUDE 'intranet-bottom.inc' %]

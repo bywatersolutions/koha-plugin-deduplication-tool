@@ -6,6 +6,13 @@ use Modern::Perl;
 ## Required for all plugins
 use base qw(Koha::Plugins::Base);
 
+use File::Basename;
+use Text::CSV;
+use List::Util qw(any);
+use List::MoreUtils qw( uniq );
+use utf8;
+use open qw(:utf8);
+
 ## We will also need to include any Koha libraries we want to access
 use C4::Context;
 use C4::Members;
@@ -14,6 +21,7 @@ use C4::Biblio;
 use C4::Matcher;
 use Koha::Libraries;
 use Koha::Patron::Categories;
+use Koha::SearchEngine::Indexer;
 use MARC::Record;
 use Koha::Items;
 use C4::Items;
@@ -63,15 +71,19 @@ sub tool {
     my ( $self, $args ) = @_;
 
     my $cgi = $self->{'cgi'};
+    my @names = $cgi->param;
 
     if ( $cgi->param('submitted') ) {
-        $self->tool_step2();
+        $self->search_step_2();
     }
     elsif ( $cgi->param('merging_time') ) {
-        $self->tool_step3();
+        $self->search_step_3();
     }
-    else { $self->tool_step1(); }
-
+    else {
+        my $template = $self->get_template({ file => 'tool_step_0.tt' });
+        print $cgi->header();
+        print $template->output();
+    } 
 }
 
 ## This is the 'install' method. Any database tables or other setup that should
@@ -101,11 +113,118 @@ sub uninstall() {
     return C4::Context->dbh->do("DROP TABLE $table");
 }
 
-sub tool_step1 {
+sub move_step_1 {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $template = $self->get_template({ file => 'move_step_1.tt' });
+
+    print $cgi->header();
+    print $template->output();
+}
+
+sub move_step_2 {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my $template;
+
+    my $filename = $cgi->param("items");
+    if( $filename ){
+        my ( $name, $path, $extension ) = fileparse( $filename, '.csv' );
+
+        my $csv_contents;
+        open my $fh_out, '>', \$csv_contents or die "Can't open variable: $!";
+
+        my $delimiter = $self->retrieve_data('delimiter') || C4::Context->preference('delimiter');
+        my $csv = Text::CSV->new( { binary => 1, sep_char => $delimiter } )
+          or die "Cannot use CSV: " . Text::CSV->error_diag();
+
+        my $upload_dir        = C4::Context->temporary_directory;#'/tmp';
+        my $upload_filehandle = $cgi->upload("items");
+        open( UPLOADFILE, '>', "$upload_dir/$filename" ) or die "$!";
+        binmode UPLOADFILE;
+        while (<$upload_filehandle>) {
+            print UPLOADFILE;
+        }
+        close UPLOADFILE;
+        open my $fh_in, '<', "$upload_dir/$filename" or die "Can't open variable: $!";
+
+        my $column_names = $csv->getline($fh_in);
+        my @required_columns = ("itemnumber","biblionumber","target");
+        my %existing_columns = map { $_ => 1 } @$column_names;
+        if ( any {  !defined $existing_columns{$_}  } @required_columns ){
+            close $fh_in;
+            $template = $self->get_template({ file => 'move_step_1.tt' });
+            $template->param( missing_required_columns => 1 );
+            print $cgi->header("text/html;charset=UTF-8");
+            print $template->output();
+            return;
+        }
+        $csv->column_names(@$column_names);
+
+        $template = $self->get_template({ file => 'move_step_2.tt' });
+        my @planned;
+        while ( my $hr = $csv->getline_hr($fh_in) ) {
+            push @planned, $hr;
+        }
+
+        $csv->eof or $csv->error_diag();
+        close $fh_in;
+        $template->param(
+            planned => \@planned,
+        );
+    } else {
+        $template = $self->get_template({ file => 'move_step_1.tt' });
+        $template->param( missing_file => 1 );
+    }
+
+    print $cgi->header();
+    print $template->output();
+}
+
+sub move_step_3 {
+    my ( $self, $args ) = @_;
+    my $cgi = $self->{'cgi'};
+    my @itemnumbers = $cgi->multi_param('itemnumber');
+    my @biblionumbers = $cgi->multi_param('biblionumber');
+    my @targets = $cgi->multi_param('target');
+
+    my @moved;
+    my @errors;
+    my @index;
+    for (my $i = 0; $i < @itemnumbers; $i++) {
+        my $target = {
+            itemnumber   => $itemnumbers[$i],
+            biblionumber => $biblionumbers[$i],
+            target       => $targets[$i],
+        };
+        my ($success, $error) = _move_item($target);
+        if( $success ){
+            push @moved, $target;
+            push @index, ($target->{target},$target->{biblionumber});
+        } else {
+            $target->{error} = $error;
+            push @errors, $target;
+        }
+    }
+    @index = uniq @index;
+    my $indexer = Koha::SearchEngine::Indexer->new({ index => $Koha::SearchEngine::BIBLIOS_INDEX });
+    $indexer->index_records( \@index, "specialUpdate", "biblioserver" ) if @index;
+    my $template = $self->get_template({ file => 'move_step_3.tt' });
+    $template->param(
+        need_confirm => $cgi->param('confirm_move') ? 0 : 1,
+        errors  => \@errors,
+        success => \@moved,
+    );
+
+    print $cgi->header();
+    print $template->output();
+}
+
+sub search_step_1 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
-    my $template = $self->get_template({ file => 'tool-step1.tt' });
+    my $template = $self->get_template({ file => 'search_step_1.tt' });
     my @matchers = C4::Matcher->GetMatcherList();
     $template->param('matchers'=>\@matchers);
 
@@ -113,13 +232,13 @@ sub tool_step1 {
     print $template->output();
 }
 
-sub tool_step2 {
+sub search_step_2 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
 
     my $display_fields =  _get_display_fields();
 
-    my $template = $self->get_template({ file => 'tool-step2.tt' });
+    my $template = $self->get_template({ file => 'search_step_2.tt' });
 
     my $filter = {};
 
@@ -160,7 +279,8 @@ sub tool_step2 {
                 $filter->{$field} = { $op => $q };
         }
     }
-    my $matched_items = Koha::Biblios->search($filter, { 
+    my $matched_items = Koha::Biblios->search($filter, {
+            select     => ["biblionumber"],
             join       =>, 'items',
             "group_by" => ["biblionumber"],
             order_by   => 'title'
@@ -219,7 +339,7 @@ sub tool_step2 {
 }
 
 
-sub tool_step3 {
+sub search_step_3 {
     my ( $self, $args ) = @_;
     my $cgi = $self->{'cgi'};
     my @biblionumbers;
@@ -239,7 +359,7 @@ sub tool_step3 {
             });
     }
 
-    my $template = $self->get_template({ file => 'tool-step3.tt' });
+    my $template = $self->get_template({ file => 'search_step_3.tt' });
     $template->param( report => \@report );
 
     print $cgi->header();
@@ -327,6 +447,54 @@ sub _get_sub_or_fields {
         }
     }
     return \@display_fields
+}
+
+
+#This function takes care of these tables: reserves hold_fill_targets tmp_holdsqueue linktracker
+# Returns 1 for success, 0 for failure
+sub _move_item {
+    my $params = shift;
+    my $itemnumber = $params->{itemnumber};
+    my $biblionumber = $params->{biblionumber};
+    my $target = $params->{target};
+    my $dbh = C4::Context->dbh;
+    my ( $tobiblioitem ) = $dbh->selectrow_array(q|
+        SELECT biblioitemnumber
+        FROM biblioitems
+        WHERE biblionumber = ?
+    |, undef, $target );
+    my $return = $dbh->do(q|
+        UPDATE items
+        SET biblioitemnumber = ?,
+            biblionumber = ?
+        WHERE itemnumber = ?
+            AND biblionumber = ?
+    |, undef, $tobiblioitem, $target, $itemnumber, $biblionumber );
+    if ($return == 1) {
+	    # Checking if the item we want to move is in an order 
+        require C4::Acquisition;
+        my $order = C4::Acquisition::GetOrderFromItemnumber($itemnumber);
+	    if ($order) {
+		    # Replacing the biblionumber within the order if necessary
+		    $order->{'biblionumber'} = $target;
+	        C4::Acquisition::ModOrder($order);
+	    }
+
+        # Update reserves, hold_fill_targets, tmp_holdsqueue and linktracker tables
+        for my $table_name ( qw( reserves hold_fill_targets tmp_holdsqueue linktracker ) ) {
+            $dbh->do( qq|
+                UPDATE $table_name
+                SET biblionumber = ?
+                WHERE itemnumber = ?
+            |, undef, $target, $itemnumber );
+        }
+        return (1, undef);
+	} elsif ( $dbh->errstr ){
+        return (0, $dbh->errstr);
+    } else {
+        return (0,"Item not moved (no rows affected)");
+    }
+
 }
 
 sub _move_items_and_extras { #this is just lifted from Koha

@@ -1,0 +1,45 @@
+[% USE Dumper %]
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Deduplication Tool</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs">
+    <a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=tool">Deduplication Tool</a> &rsaquo;
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=move_step_1">Move items</a> &rsaquo;
+    Confirm
+</div>
+
+<div id="doc3">
+These are the items that will be moved
+<form method="post" action="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=move_step_3">
+    <input type="submit" value="Move items">
+    <input type="hidden" name="class" value="Koha::Plugin::Com::ByWaterSolutions::Deduplication">
+    <input type="hidden" name="method" value="move_step_3">
+    <table>
+        <tr>
+            <th colspan="100">Targets</th>
+        </tr>
+        [% FOREACH target IN planned %]
+            <tr>
+                <td>Will move itemnumber [% target.itemnumber %] from
+                    biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% target.biblionumber | url %]">[% target.biblionumber | html %]</a>
+                    to
+                    biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% target.target | url %]">[% target.target | html %]</a>
+                    <input type="hidden" name="itemnumber" value="[% target.itemnumber %]">
+                    <input type="hidden" name="biblionumber" value="[% target.biblionumber %]">
+                    <input type="hidden" name="target" value="[% target.target %]">
+                </td>
+            </tr>
+        [% END %]
+    </table>
+</form>
+</div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]

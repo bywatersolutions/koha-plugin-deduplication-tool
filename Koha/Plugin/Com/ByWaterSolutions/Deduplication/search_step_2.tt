@@ -28,7 +28,7 @@ $(document).ready(function(){
 <form "merge_results" method="post">
 <input type='hidden' name='merging_time' value='1'>
 <input type="hidden" name="class" value="[% CLASS %]" />
-<input type="hidden" name="method" value="[% METHOD %]" />
+<input type="hidden" name="method" value="search_step_3" />
 <table>
 <tr>
 <th>Merge</th>

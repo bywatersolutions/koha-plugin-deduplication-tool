@@ -1,0 +1,49 @@
+[% USE Dumper %]
+[% INCLUDE 'doc-head-open.inc' %]
+ <title>Koha: Deduplication Tool</title>
+[% INCLUDE 'doc-head-close.inc' %]
+</head>
+<body>
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+
+<div id="breadcrumbs">
+    <a href="/cgi-bin/koha/mainpage.pl">Home</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/plugins-home.pl">Plugins</a> &rsaquo; 
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=tool">Deduplication Tool</a> &rsaquo;
+    <a href="/cgi-bin/koha/plugins/run.pl?class=[% CLASS | uri %]&method=move_step_1">Move items</a> &rsaquo;
+    Results
+</div>
+
+<div id="doc3">
+These are the results of the merge
+<table>
+    <tr>
+    <th colspan="100">Results!</th>
+    </tr>
+    [% FOREACH moved IN success %]
+        <tr>
+            <td>Successfully moved itemnumber [% moved.itemnumber %] from
+                biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% moved.biblionumber | url %]">[% moved.biblionumber | html %]</a>
+                to
+                biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% moved.target | url %]">[% moved.target | html %]</a>
+            </td>
+        </tr>
+    [% END %]
+    [% FOREACH error IN errors %]
+        <tr>
+            <td>Failed to move itemnumber [% error.itemnumber %] from
+                biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% error.biblionumber | url %]">[% error.biblionumber | html %]</a>
+                to
+                biblio <a href="/cgi-bin/koha/catalogue/detail.pl?biblionumber=[% error.target | url %]">[% error.target | html %]</a> :
+                </br>
+                <span class="problem">[% error.error %]</span>
+            </td>
+        </tr>
+    [% END %]
+</tr>
+</table>
+</div>
+
+
+[% INCLUDE 'intranet-bottom.inc' %]
