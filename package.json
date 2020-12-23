@@ -1,7 +1,7 @@
 {
   "name": "koha-plugin-deduplication-tool",
-  "version": "0.0.9",
-  "previous_version": "0.0.8",
+  "version": "0.0.10",
+  "previous_version": "0.0.9",
   "description": "Koha Record Deduplication Plugin",
   "devDependencies": {
     "gulp": "^3.9.1",
