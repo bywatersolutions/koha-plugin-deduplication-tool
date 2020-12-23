@@ -135,6 +135,7 @@ sub move_step_2 {
         open my $fh_out, '>', \$csv_contents or die "Can't open variable: $!";
 
         my $delimiter = $self->retrieve_data('delimiter') || C4::Context->preference('delimiter');
+        $delimiter = "\t" if ($delimiter eq 'tabulation');
         my $csv = Text::CSV->new( { binary => 1, sep_char => $delimiter } )
           or die "Cannot use CSV: " . Text::CSV->error_diag();
 
