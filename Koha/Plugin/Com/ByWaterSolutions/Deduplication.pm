@@ -90,22 +90,24 @@ sub tool {
 ## be done when the plugin if first installed should be executed in this method.
 ## The installation method should always return true if the installation succeeded
 ## or false if it failed.
-sub install() {
+sub install {
     my ( $self, $args ) = @_;
 
     my $table = $self->get_qualified_table_name('mytable');
 
-    return C4::Context->dbh->do( "
-        CREATE TABLE  $table (
-            `borrowernumber` INT( 11 ) NOT NULL
-        ) ENGINE = INNODB;
-    " );
+    unless ( $self->_table_exists( $table ) ) {
+        return C4::Context->dbh->do(qq{
+            CREATE TABLE $table (
+                `borrowernumber` INT(11) NOT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        });
+    }
 }
 
 ## This method will be run just before the plugin files are deleted
 ## when a plugin is uninstalled. It is good practice to clean up
 ## after ourselves!
-sub uninstall() {
+sub uninstall {
     my ( $self, $args ) = @_;
 
     my $table = $self->get_qualified_table_name('mytable');
@@ -583,7 +585,23 @@ sub _merge_biblios {
     return \@report_records;
 }
 
+=head3 _table_exists (helper)
 
+Method to check if a table exists in Koha.
 
+FIXME: Should be made available to plugins in core
+
+=cut
+
+sub _table_exists {
+    my ($self, $table) = @_;
+    eval {
+        C4::Context->dbh->{PrintError} = 0;
+        C4::Context->dbh->{RaiseError} = 1;
+        C4::Context->dbh->do(qq{SELECT * FROM $table WHERE 1 = 0 });
+    };
+    return 1 unless $@;
+    return 0;
+}
 
 1;
