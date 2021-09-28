@@ -39,7 +39,7 @@ our $metadata = {
     description =>
 'This plugin is a helper plugin for deduplication of records within a catalog',
     date_authored   => '2017-06-21',
-    date_updated    => '2017-06-21',
+    date_updated    => '1900-01-01',
     minimum_version => '16.06.00.018',
     maximum_version => undef,
     version         => $VERSION,
