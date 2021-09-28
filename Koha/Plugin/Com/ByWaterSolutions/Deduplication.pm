@@ -86,7 +86,14 @@ sub tool {
     } 
 }
 
+=head3 upgrade
+
+Takes care of upgrading whatever is needed (table structure, new tables, information on those)
+
+=cut
+
 sub upgrade {
+    my ( $self, $args ) = @_;
 
     # upgrade added after 0.0.11
     my $new_version = "0.0.12";
