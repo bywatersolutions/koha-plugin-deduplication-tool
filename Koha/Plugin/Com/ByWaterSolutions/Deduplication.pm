@@ -86,33 +86,27 @@ sub tool {
     } 
 }
 
-## This is the 'install' method. Any database tables or other setup that should
-## be done when the plugin if first installed should be executed in this method.
-## The installation method should always return true if the installation succeeded
-## or false if it failed.
-sub install {
-    my ( $self, $args ) = @_;
+sub upgrade {
 
-    my $table = $self->get_qualified_table_name('mytable');
+    # upgrade added after 0.0.11
+    my $new_version = "0.0.12";
 
-    unless ( $self->_table_exists( $table ) ) {
-        return C4::Context->dbh->do(qq{
-            CREATE TABLE $table (
-                `borrowernumber` INT(11) NOT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        });
+    if (
+        Koha::Plugins::Base::_version_compare(
+            $self->retrieve_data('__INSTALLED_VERSION__'), $new_version ) == -1
+      )
+    {
+
+        my $table = $self->get_qualified_table_name('mytable');
+
+        if ( $self->_table_exists($table) ) {
+            C4::Context->dbh->do(qq{
+                DROP TABLE $table;
+            });
+        }
+
+        $self->store_data( { '__INSTALLED_VERSION__' => $new_version } );
     }
-}
-
-## This method will be run just before the plugin files are deleted
-## when a plugin is uninstalled. It is good practice to clean up
-## after ourselves!
-sub uninstall {
-    my ( $self, $args ) = @_;
-
-    my $table = $self->get_qualified_table_name('mytable');
-
-    return C4::Context->dbh->do("DROP TABLE $table");
 }
 
 sub move_step_1 {
