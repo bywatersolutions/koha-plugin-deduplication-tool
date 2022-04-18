@@ -98,10 +98,8 @@ sub upgrade {
     # upgrade added after 0.0.11
     my $new_version = "0.0.12";
 
-    if (
-        Koha::Plugins::Base::_version_compare(
-            $self->retrieve_data('__INSTALLED_VERSION__'), $new_version ) == -1
-      )
+    my $current_version = $self->retrieve_data('__INSTALLED_VERSION__');
+    if ( $current_version && Koha::Plugins::Base::_version_compare( $current_version, $new_version ) == -1 )
     {
 
         my $table = $self->get_qualified_table_name('mytable');
