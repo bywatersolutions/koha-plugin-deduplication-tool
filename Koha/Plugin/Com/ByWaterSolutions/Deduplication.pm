@@ -17,7 +17,7 @@ use open qw(:utf8);
 use C4::Context;
 use C4::Members;
 use C4::Auth;
-use C4::Biblio qw( GetMarcBiblio );
+use C4::Biblio qw(GetMarcBiblio);
 use C4::Matcher;
 use Koha::Libraries;
 use Koha::Patron::Categories;
