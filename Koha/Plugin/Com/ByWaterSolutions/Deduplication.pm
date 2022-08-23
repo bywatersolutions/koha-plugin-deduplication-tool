@@ -7,27 +7,27 @@ use Modern::Perl;
 use base qw(Koha::Plugins::Base);
 
 use File::Basename;
-use Text::CSV;
-use List::Util qw(any);
 use List::MoreUtils qw( uniq );
-use utf8;
+use List::Util qw(any);
+use Text::CSV;
+use Try::Tiny;
 use open qw(:utf8);
+use utf8;
 
 ## We will also need to include any Koha libraries we want to access
-use C4::Context;
-use C4::Members;
+use C4::Acquisition;
 use C4::Auth;
-use C4::Biblio qw(GetMarcBiblio);
+use C4::Context;
+use C4::Items;
 use C4::Matcher;
+use C4::Members;
+use C4::Reserves qw/MergeHolds/;
+use C4::Serials;
+use Koha::Items;
 use Koha::Libraries;
 use Koha::Patron::Categories;
 use Koha::SearchEngine::Indexer;
 use MARC::Record;
-use Koha::Items;
-use C4::Items;
-use C4::Serials;
-use C4::Reserves qw/MergeHolds/;
-use C4::Acquisition;
 
 ## Here we set our plugin version
 our $VERSION = "{VERSION}";
@@ -292,10 +292,14 @@ sub search_step_2 {
     while ( my $cur_item = $matched_items->next ){
         if ( !$seen{$cur_item->biblionumber}++ ) {
             my $record;
-            if ( C4::Context->preference('Version') gt '17.060000' ) {
-                $record = GetMarcBiblio({ biblionumber => $cur_item->biblionumber });
+            if ( C4::Context->preference('Version') gt '22.0600022' ) {
+                $record = $cur_item->biblio->metadata->record;
+            } elsif ( C4::Context->preference('Version') gt '17.060000' ) {
+                require C4::Biblio;
+                $record = C4::Biblio::GetMarcBiblio({ biblionumber => $cur_item->biblionumber });
             } else {
-                $record = GetMarcBiblio( $cur_item->biblionumber );
+                require C4::Biblio;
+                $record = C4::Biblio::GetMarcBiblio( $cur_item->biblionumber );
             }
             my $matcher = C4::Matcher->fetch($matcher);
             my @matches = $matcher->get_matches( $record, 100 );
@@ -389,10 +393,15 @@ sub _prep_record {
     my $display_fields = $params->{display_fields};
     my $biblionumber = $params->{biblionumber};
     my $record;
-    if ( C4::Context->preference('Version') gt '17.060000' ) {
-       $record = GetMarcBiblio({ biblionumber => $biblionumber });
+    if ( C4::Context->preference('Version') gt '22.0600022' ) {
+        my $biblio = Koha::Biblios->find( $biblionumber );
+        $record = $biblio->metadata->record if $biblio;
+    } elsif ( C4::Context->preference('Version') gt '17.060000' ) {
+        require C4::Biblio;
+        $record = C4::Biblio::GetMarcBiblio({ biblionumber => $biblionumber });
     } else {
-       $record = GetMarcBiblio( $biblionumber );
+        require C4::Biblio;
+        $record = C4::Biblio::GetMarcBiblio( $biblionumber );
     }
     return {biblionumber=>$biblionumber,pre=>undef,length=>0,display=>["Record not found, indexes may need rebuilding"]} if !$record;
     my $length = length( $record->as_formatted() );
