@@ -17,6 +17,7 @@ use utf8;
 ## We will also need to include any Koha libraries we want to access
 use C4::Acquisition;
 use C4::Auth;
+use C4::Biblio qw( DelBiblio );
 use C4::Context;
 use C4::Items;
 use C4::Matcher;
