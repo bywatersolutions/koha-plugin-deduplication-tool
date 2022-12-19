@@ -15,7 +15,7 @@ use open qw(:utf8);
 use utf8;
 
 ## We will also need to include any Koha libraries we want to access
-use C4::Acquisition;
+use C4::Acquisition qw( GetOrdersByBiblionumber );
 use C4::Auth;
 use C4::Biblio qw( DelBiblio );
 use C4::Context;
@@ -23,7 +23,7 @@ use C4::Items;
 use C4::Matcher;
 use C4::Members;
 use C4::Reserves qw/MergeHolds/;
-use C4::Serials;
+use C4::Serials qw( CountSubscriptionFromBiblionumber );
 use Koha::Items;
 use Koha::Libraries;
 use Koha::Patron::Categories;
@@ -516,21 +516,11 @@ sub _move_items_and_extras { #this is just lifted from Koha
     my @errors;
     my $dbh = C4::Context->dbh;
 
-    my @notmoveditems;
     # Moving items from the other record to the reference record
-    my $items = Koha::Items->search({ biblionumber => $biblionumber });
-        while ( my $item = $items->next) {
-            my $res = MoveItemFromBiblio( $item->itemnumber, $biblionumber, $ref_biblionumber );
-            #This function takes care of these tables: reserves hold_fill_targets tmp_holdsqueue linktracker
-            if ( not defined $res ) {
-                push @notmoveditems, $item->itemnumber;
-            }
-        }
-    # If some items could not be moved :
-    if (scalar(@notmoveditems) > 0) {
-        my $itemlist = join(' ',@notmoveditems);
-        push @errors, { code => "CANNOT_MOVE", value => $itemlist };
-    }
+    my $biblio = Koha::Biblios->find($ref_biblionumber);
+    my $from_biblio = Koha::Biblios->find($biblionumber);
+    $from_biblio->items->move_to_biblio($biblio);
+    $from_biblio->article_requests->update({ biblionumber => $ref_biblionumber }, { no_triggers => 1 });
 
     my $sth_subscription = $dbh->prepare("UPDATE subscription SET biblionumber = ? WHERE biblionumber = ?");
     my $sth_subscriptionhistory = $dbh->prepare("UPDATE subscriptionhistory SET biblionumber = ? WHERE biblionumber = ?");
