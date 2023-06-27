@@ -97,10 +97,11 @@ sub upgrade {
     my ( $self, $args ) = @_;
 
     # upgrade added after 0.0.11
-    my $new_version = "0.0.12";
+    # before this the plugin added 'mytable' which is not needed, so we clean up if current version less than 12
+    my $fixed_version = "0.0.12";
 
     my $current_version = $self->retrieve_data('__INSTALLED_VERSION__');
-    if ( $current_version && Koha::Plugins::Base::_version_compare( $current_version, $new_version ) == -1 )
+    if ( $current_version && Koha::Plugins::Base::_version_compare( $current_version, $fixed_version ) == -1 )
     {
 
         my $table = $self->get_qualified_table_name('mytable');
@@ -111,8 +112,9 @@ sub upgrade {
             });
         }
 
-        $self->store_data( { '__INSTALLED_VERSION__' => $new_version } );
     }
+
+    return 1;
 }
 
 sub move_step_1 {
