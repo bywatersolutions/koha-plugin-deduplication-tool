@@ -296,7 +296,7 @@ sub search_step_2 {
         if ( !$seen{$cur_item->biblionumber}++ ) {
             my $record;
             if ( C4::Context->preference('Version') gt '22.0600022' ) {
-                $record = $cur_item->biblio->metadata->record;
+                $record = $cur_item->metadata->record;
             } elsif ( C4::Context->preference('Version') gt '17.060000' ) {
                 require C4::Biblio;
                 $record = C4::Biblio::GetMarcBiblio({ biblionumber => $cur_item->biblionumber });
